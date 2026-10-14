@@ -25,9 +25,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.v.outputs.version }}
         run: |
-          gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --draft --title "AC Controller $VERSION" --generate-notes
-          id=$(gh api "repos/$GITHUB_REPOSITORY/releases" --jq ".[] | select(.tag_name==\"v$VERSION\") | .id")
+          id=$(gh api -X POST "repos/$GITHUB_REPOSITORY/releases" \
+            -f tag_name="v$VERSION" -f target_commitish="$GITHUB_SHA" \
+            -f name="AC Controller $VERSION" -F draft=true -F generate_release_notes=true --jq .id)
+          test -n "$id"
           echo "id=$id" >> "$GITHUB_OUTPUT"
 
   build:
@@ -67,6 +68,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           releaseId: ${{ needs.release.outputs.release_id }}
+          includeUpdaterJson: true
 
   publish:
     needs: [release, build]
@@ -74,4 +76,8 @@ jobs:
     steps:
       - env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release edit "v${{ needs.release.outputs.version }}" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+        # Só publica se o latest.json (que a app usa para se atualizar) foi enviado.
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/releases/${{ needs.release.outputs.release_id }}/assets" --jq '.[].name' | tee assets.txt
+          grep -qx latest.json assets.txt
+          gh release edit "v${{ needs.release.outputs.version }}" --repo "$GITHUB_REPOSITORY" --draft=false --latest
