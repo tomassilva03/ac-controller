@@ -6,8 +6,9 @@ use std::time::{Duration, Instant};
 
 use serde_json::Value;
 use session::Session;
+use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 use tauri::{
-    menu::{Menu, MenuItem},
+    menu::{CheckMenuItem, Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     AppHandle, Manager, PhysicalPosition, PhysicalSize, Rect, State, WebviewWindow, WindowEvent,
 };
@@ -147,6 +148,7 @@ fn show_panel(window: &WebviewWindow, tray: TrayRect) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
         .invoke_handler(tauri::generate_handler![
             status,
             login,
@@ -183,18 +185,40 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
+            // Na primeira vez que a app corre fica a arrancar com o sistema; depois
+            // quem manda é a opção do menu.
+            let autostart = app.autolaunch();
+            let marker = app.path().app_config_dir()?.join("autostart-configured");
+            if !marker.exists() {
+                let _ = autostart.enable();
+                let _ = std::fs::create_dir_all(marker.parent().unwrap());
+                let _ = std::fs::write(&marker, "");
+            }
+            let startup = CheckMenuItem::with_id(
+                app,
+                "startup",
+                "Arrancar com o sistema",
+                true,
+                autostart.is_enabled().unwrap_or(false),
+                None::<&str>,
+            )?;
             let quit = MenuItem::with_id(app, "quit", "Sair", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&quit])?;
+            let menu = Menu::with_items(app, &[&startup, &quit])?;
 
             TrayIconBuilder::with_id("main")
                 .icon(app.default_window_icon().unwrap().clone())
                 .tooltip("AC Controller")
                 .menu(&menu)
                 .show_menu_on_left_click(false)
-                .on_menu_event(|app, event| {
-                    if event.id.as_ref() == "quit" {
-                        app.exit(0);
+                .on_menu_event(move |app, event| match event.id.as_ref() {
+                    "startup" => {
+                        let autostart = app.autolaunch();
+                        let enabled = autostart.is_enabled().unwrap_or(false);
+                        let _ = if enabled { autostart.disable() } else { autostart.enable() };
+                        let _ = startup.set_checked(autostart.is_enabled().unwrap_or(!enabled));
                     }
+                    "quit" => app.exit(0),
+                    _ => {}
                 })
                 .on_tray_icon_event(|tray, event| {
                     if let TrayIconEvent::Click {
