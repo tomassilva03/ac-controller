@@ -79,6 +79,16 @@ fn hide_panel(app: AppHandle) {
     }
 }
 
+/// Procura uma versão nova no GitHub; se houver, instala-a e reinicia a app.
+async fn check_for_update(app: AppHandle) -> tauri_plugin_updater::Result<()> {
+    use tauri_plugin_updater::UpdaterExt;
+    if let Some(update) = app.updater()?.check().await? {
+        update.download_and_install(|_, _| {}, || {}).await?;
+        app.restart();
+    }
+    Ok(())
+}
+
 fn toggle_panel(app: &AppHandle, tray: Rect) {
     let Some(window) = app.get_webview_window("main") else {
         return;
@@ -136,6 +146,7 @@ fn show_panel(window: &WebviewWindow, tray: TrayRect) {
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             status,
             login,
@@ -154,6 +165,18 @@ pub fn run() {
                 let _ = background.lock().unwrap().auto_login();
             });
             app.manage(AppState { session, last_hidden: Mutex::new(None) });
+
+            // Procura atualizações ao arrancar e depois de 6 em 6 horas.
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                loop {
+                    let _ = check_for_update(handle.clone()).await;
+                    let _ = tauri::async_runtime::spawn_blocking(|| {
+                        std::thread::sleep(Duration::from_secs(6 * 60 * 60))
+                    })
+                    .await;
+                }
+            });
 
             // No macOS a app vive só na barra de menus, sem ícone na Dock.
             #[cfg(target_os = "macos")]

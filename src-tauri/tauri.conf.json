@@ -40,6 +40,18 @@
     ],
     "externalBin": [
       "binaries/hon-bridge"
-    ]
+    ],
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDgzQUZEREZENkUxNkQyM0MKUldRODBoWnUvZDJ2Zy9ucUJEOFdod1ZtT2RhZVp5NnRmcjhaRThCLzB0Ym4yTC9OS3JuK1NYRlQK",
+      "endpoints": [
+        "https://github.com/tomassilva03/ac-controller/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

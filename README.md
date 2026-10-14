@@ -19,9 +19,11 @@ O ícone aparece na bandeja (Windows) ou na barra de menus (macOS). Clique esque
 
 Para ver só o design, também podes abrir `src/index.html` no browser.
 
-## Instaladores
+## Versões e atualizações
 
-Cada push para `main` gera um `.msi` (Windows) e um `.dmg` (macOS) no separador **Actions** do GitHub, em *Artifacts*.
+Cada push para `main` publica uma versão nova nas [Releases](../../releases) (`.msi` para Windows e `.dmg` para macOS). A app procura versões novas ao arrancar e de 6 em 6 horas, e instala-as sozinha.
+
+As versões são assinadas com a chave dos secrets `TAURI_SIGNING_PRIVATE_KEY` e `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`; a chave pública está em `src-tauri/tauri.conf.json`. Sem essa chave a app instalada recusa as atualizações.
 
 ## Estrutura
 

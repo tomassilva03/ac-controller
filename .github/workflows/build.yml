@@ -1,21 +1,41 @@
 name: build
 
+# Cada push para main gera uma versão nova (0.1.<número do build>), publicada nas
+# Releases. A app instalada vê-a e atualiza-se sozinha.
+
 on:
   push:
     branches: [main]
-  pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      release_id: ${{ steps.r.outputs.id }}
+    steps:
+      - id: v
+        run: echo "version=0.1.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+      - id: r
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --draft --title "AC Controller $VERSION" --generate-notes
+          id=$(gh api "repos/$GITHUB_REPOSITORY/releases" --jq ".[] | select(.tag_name==\"v$VERSION\") | .id")
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: release
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: macos-latest
-            bundle: src-tauri/target/release/bundle/dmg/*.dmg
-          - os: windows-latest
-            bundle: src-tauri/target/release/bundle/msi/*.msi
+        os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -30,14 +50,28 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+      - name: Pôr a versão
+        shell: bash
+        run: |
+          node -e "const f='src-tauri/tauri.conf.json';const c=require('./'+f);c.version='${{ needs.release.outputs.version }}';require('fs').writeFileSync(f,JSON.stringify(c,null,2)+'\n')"
       - name: Testar e compilar o hon-bridge
         run: |
           python -m pip install -r bridge/requirements.txt pytest
           python -m pytest -q bridge/tests
           python bridge/build.py
       - run: npm ci
-      - run: npx tauri build
-      - uses: actions/upload-artifact@v4
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          name: ac-controller-${{ matrix.os }}
-          path: ${{ matrix.bundle }}
+          releaseId: ${{ needs.release.outputs.release_id }}
+
+  publish:
+    needs: [release, build]
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "v${{ needs.release.outputs.version }}" --repo "$GITHUB_REPOSITORY" --draft=false --latest
