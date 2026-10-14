@@ -22,9 +22,15 @@
           <span class="dot" id="statusDot" title="Ligação ao AC"></span>
         </div>
       </div>
-      <button class="power" id="power" aria-label="Ligar ou desligar">
-        <svg viewBox="0 0 24 24"><path d="M12 3v8"/><path d="M6.3 7.2a8 8 0 1 0 11.4 0"/></svg>
-      </button>
+      <div class="head-right">
+        <button class="timer" id="timer" aria-label="Temporizador para desligar" title="Desligar mais tarde">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9 2h6"/></svg>
+          <span id="timerLeft" hidden></span>
+        </button>
+        <button class="power" id="power" aria-label="Ligar ou desligar">
+          <svg viewBox="0 0 24 24"><path d="M12 3v8"/><path d="M6.3 7.2a8 8 0 1 0 11.4 0"/></svg>
+        </button>
+      </div>
     </header>
 
     <section class="unit" aria-hidden="true">

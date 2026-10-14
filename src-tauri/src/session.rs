@@ -126,7 +126,20 @@ impl Session {
 
     pub fn update_state(&mut self, patch: Value) -> Result<Value, String> {
         let ac = self.selected()?;
+        self.update_ac(&ac, patch)
+    }
+
+    /// Muda um AC em concreto (o temporizador usa isto, porque o AC escolhido
+    /// no painel pode já ser outro quando chega a hora).
+    pub fn update_ac(&mut self, ac: &str, patch: Value) -> Result<Value, String> {
+        if !self.logged_in {
+            return Err("not_logged_in".into());
+        }
         self.call("set", json!({ "ac": ac, "patch": patch }))
+    }
+
+    pub fn selected_id(&self) -> Option<String> {
+        self.config.selected_ac.clone()
     }
 
     fn selected(&self) -> Result<String, String> {

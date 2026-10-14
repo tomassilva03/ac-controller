@@ -70,6 +70,7 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round
 .ac-picker span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ac-picker:hover { background: var(--tile); }
 .chev-inline { width: 14px; height: 14px; flex: none; color: var(--text-dim); }
+.room .dot { flex: none; }
 .room { display: flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: 13px; }
 .room .ico { width: 15px; height: 15px; }
 .room .ico { color: var(--cold); }
@@ -79,6 +80,21 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round
 .dot { width: 7px; height: 7px; border-radius: 50%; background: #6b6460; transition: background .3s, box-shadow .3s; }
 .panel.on .dot { background: var(--blue); box-shadow: 0 0 8px var(--blue); }
 .panel.offline .dot { background: #e5484d; box-shadow: none; }
+
+.head-right { display: flex; align-items: center; gap: 8px; }
+.timer {
+  height: 34px; min-width: 34px; padding: 0 9px; border-radius: 17px;
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  background: var(--tile); border: 1px solid var(--line); color: var(--text-dim);
+  font-size: 12px; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.timer svg { width: 16px; height: 16px; }
+.timer:hover, .timer.open { background: var(--tile-hover); color: var(--text); }
+.timer.active {
+  color: #c4b5fd; background: rgba(167, 139, 250, 0.16);
+  border-color: rgba(167, 139, 250, 0.35);
+}
+.panel:not(.on) .timer { display: none; }
 
 .power {
   width: 50px; height: 50px; border-radius: 50%;

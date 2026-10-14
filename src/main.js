@@ -58,9 +58,9 @@ function paintTemperature(temp) {
   const t = Math.min(1, Math.max(0, (temp - min) / (max - min)));
   const style = panel.style;
   // Semi-transparente para se ver o vidro do sistema por trás.
-  style.setProperty("--bg-top", rgba(mix(COLD.top, WARM.top, t), 0.62));
-  style.setProperty("--bg-mid", rgba(mix(COLD.mid, WARM.mid, t), 0.7));
-  style.setProperty("--bg-bottom", rgba(mix(COLD.bottom, WARM.bottom, t), 0.8));
+  style.setProperty("--bg-top", rgba(mix(COLD.top, WARM.top, t), 0.78));
+  style.setProperty("--bg-mid", rgba(mix(COLD.mid, WARM.mid, t), 0.84));
+  style.setProperty("--bg-bottom", rgba(mix(COLD.bottom, WARM.bottom, t), 0.9));
   style.setProperty("--bg-glow", `rgba(${mix(COLD.glow, WARM.glow, t).join(",")}, 0.16)`);
   // O preenchimento do slider vai até ao centro do botão (30px de largura).
   style.setProperty("--fill", `calc(15px + (100% - 30px) * ${t})`);
@@ -86,6 +86,58 @@ function describeStatus(s) {
   if (diff < -0.5 && s.mode !== "cool") return { kind: "heat", title: "A aquecer", sub: away };
   return { kind: "done", title: "Temperatura atingida", sub: `A manter ${s.targetTemp}°C` };
 }
+
+// ---------- temporizador ----------
+
+const TIMER_OPTIONS = [
+  [null, "Sem temporizador"],
+  [30, "Daqui a 30 min"],
+  [60, "Daqui a 1 h"],
+  [120, "Daqui a 2 h"],
+  [240, "Daqui a 4 h"],
+  [480, "Daqui a 8 h"],
+];
+let timer = null; // { ac, deadline } ou null
+
+function timeLeft() {
+  const min = Math.max(1, Math.ceil((timer.deadline - Date.now()) / 60000));
+  return min < 60 ? `${min} min` : `${Math.floor(min / 60)}h${String(min % 60).padStart(2, "0")}`;
+}
+
+function renderTimer() {
+  const active = !!timer && !!state?.power;
+  $("timer").classList.toggle("active", active);
+  $("timerLeft").hidden = !active;
+  if (active) $("timerLeft").textContent = timeLeft();
+}
+
+async function loadTimer() {
+  try {
+    timer = await invoke("get_timer");
+  } catch {
+    timer = null;
+  }
+  render();
+}
+
+$("timer").addEventListener("click", (e) => {
+  e.stopPropagation();
+  if ($("timer").classList.contains("open")) return closeMenu();
+  // Sem temporizador ativo fica marcada a primeira opção; com um ativo, nenhuma.
+  openMenu($("timer"), TIMER_OPTIONS, timer ? undefined : null, async (minutes) => {
+    try {
+      timer = await invoke("set_timer", { minutes });
+      message(minutes ? `Desliga daqui a ${timeLeft()}.` : "");
+    } catch (err) {
+      message(errorText(err));
+    }
+    render();
+  }, "below");
+});
+
+setInterval(() => {
+  if (timer) renderTimer();
+}, 20000);
 
 function renderStatus() {
   const st = describeStatus(state);
@@ -131,6 +183,7 @@ function render() {
   $("outdoor").hidden = !state.outdoorTemp;
   $("outdoorTemp").textContent = `${Math.round(state.outdoorTemp ?? 0)}°C`;
   renderStatus();
+  renderTimer();
   $("targetTemp").textContent = state.targetTemp;
   $("unitTemp").textContent = state.power ? state.targetTemp : "--";
   const slider = $("slider");
@@ -173,6 +226,7 @@ async function refresh() {
   if (!session?.loggedIn || Object.keys(pending).length || sending) return;
   try {
     state = await invoke("get_state");
+    timer = await invoke("get_timer").catch(() => null);
     render();
     showPanel();
   } catch (e) {
@@ -236,7 +290,10 @@ function setTemp(t) {
 
 // ---------- eventos ----------
 
-$("power").addEventListener("click", () => change({ power: !state.power }));
+$("power").addEventListener("click", () => {
+  if (state.power) timer = null;
+  change({ power: !state.power });
+});
 $("eco").addEventListener("click", () => change({ eco: !state.eco }));
 $("minus").addEventListener("click", () => setTemp(state.targetTemp - 1));
 $("plus").addEventListener("click", () => setTemp(state.targetTemp + 1));
@@ -347,6 +404,15 @@ document.addEventListener("keydown", (e) => {
   if (tauri) invoke("hide_panel");
 });
 
+// O temporizador corre no backend; quando desliga o AC avisa o painel.
+if (tauri) {
+  tauri.event.listen("ac-state", ({ payload }) => {
+    state = payload;
+    render();
+  });
+  tauri.event.listen("timer", () => loadTimer());
+}
+
 // Volta a ler o estado quando o painel abre e de 30 em 30 segundos enquanto está aberto.
 window.addEventListener("focus", refresh);
 setInterval(() => {
@@ -360,6 +426,7 @@ function mockInvoke() {
     { id: "a", name: "Tomás AC", model: "AS25" },
     { id: "b", name: "Livingroom AC", model: "AS35" },
   ];
+  let mockTimer = null;
   let s = { loggedIn: true, email: "teste@exemplo.pt", acs, selected: "a" };
   const states = Object.fromEntries(
     acs.map((ac, i) => [ac.id, {
@@ -378,6 +445,8 @@ function mockInvoke() {
       case "update_state": Object.assign(states[s.selected], args.patch); return { ...states[s.selected] };
       case "app_version": return "0.0.0";
       case "check_update": return null;
+      case "get_timer": return mockTimer;
+      case "set_timer": mockTimer = args.minutes ? { ac: s.selected, deadline: Date.now() + args.minutes * 60000 } : null; return mockTimer;
     }
   };
 }

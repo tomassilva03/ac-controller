@@ -1,5 +1,6 @@
 mod bridge;
 mod session;
+mod timer;
 mod tray;
 
 use std::sync::{Arc, Mutex};
@@ -20,6 +21,7 @@ struct AppState {
     /// tira o foco ao painel antes do clique chegar, por isso ignoramos o clique
     /// que vem logo a seguir, senão o painel reabria.
     last_hidden: Mutex<Option<Instant>>,
+    timer: timer::Shared,
 }
 
 /// Posição do ícone da bandeja em píxeis físicos.
@@ -77,9 +79,41 @@ async fn update_state(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<Value, String> {
+    if patch["power"] == Value::Bool(false) {
+        *state.timer.lock().unwrap() = None;
+    }
     let result = with_session(state, move |s| s.update_state(patch)).await?;
     tray::show_state(&app, &result);
     Ok(result)
+}
+
+/// Temporizador do AC escolhido: `null` ou `{ ac, deadline }` (milissegundos).
+#[tauri::command]
+async fn get_timer(state: State<'_, AppState>) -> Result<Value, String> {
+    let selected = state.session.lock().unwrap().selected_id();
+    Ok(match state.timer.lock().unwrap().as_ref() {
+        Some(t) if Some(&t.ac) == selected.as_ref() => t.to_json(),
+        _ => Value::Null,
+    })
+}
+
+/// Desliga o AC escolhido daqui a `minutes` minutos; `None` cancela.
+#[tauri::command]
+async fn set_timer(minutes: Option<u64>, state: State<'_, AppState>) -> Result<Value, String> {
+    let Some(minutes) = minutes else {
+        *state.timer.lock().unwrap() = None;
+        return Ok(Value::Null);
+    };
+    // A sessão pode estar ocupada com um pedido ao hOn; lê-se antes de bloquear o temporizador.
+    let ac = state.session.lock().unwrap().selected_id().ok_or("no_ac")?;
+    let mut timer = state.timer.lock().unwrap();
+    let t = timer::Timer {
+        ac,
+        deadline: std::time::SystemTime::now() + Duration::from_secs(minutes * 60),
+    };
+    let json = t.to_json();
+    *timer = Some(t);
+    Ok(json)
 }
 
 #[tauri::command]
@@ -195,7 +229,9 @@ pub fn run() {
             update_state,
             hide_panel,
             app_version,
-            check_update
+            check_update,
+            get_timer,
+            set_timer
         ])
         .setup(|app| {
             let config_dir = app.path().app_config_dir()?;
@@ -216,7 +252,9 @@ pub fn run() {
                     std::thread::sleep(Duration::from_secs(120));
                 }
             });
-            app.manage(AppState { session, last_hidden: Mutex::new(None) });
+            let shared_timer: timer::Shared = Arc::new(Mutex::new(None));
+            timer::start(app.handle().clone(), shared_timer.clone(), session.clone());
+            app.manage(AppState { session, last_hidden: Mutex::new(None), timer: shared_timer });
 
             // Procura atualizações ao arrancar e depois de 6 em 6 horas.
             let handle = app.handle().clone();
