@@ -9,11 +9,17 @@
 <body>
   <main class="panel" id="panel" data-mode="cool">
     <header class="top">
-      <div class="room">
-        <svg class="ico" viewBox="0 0 24 24"><path d="M14 4v10.5a4 4 0 1 1-4 0V4a2 2 0 1 1 4 0Z"/><path d="M12 9v7"/></svg>
-        <span class="room-label">Sala</span>
-        <span class="room-temp" id="roomTemp">--°C</span>
-        <span class="dot" id="statusDot"></span>
+      <div class="head-left">
+        <button class="ac-picker" id="acPicker">
+          <span id="acName">AC</span>
+          <svg class="chev-inline" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="room">
+          <svg class="ico" viewBox="0 0 24 24"><path d="M14 4v10.5a4 4 0 1 1-4 0V4a2 2 0 1 1 4 0Z"/><path d="M12 9v7"/></svg>
+          <span class="room-label">Divisão</span>
+          <span class="room-temp" id="roomTemp">--°C</span>
+          <span class="dot" id="statusDot" title="Ligação ao AC"></span>
+        </div>
       </div>
       <button class="power" id="power" aria-label="Ligar ou desligar">
         <svg viewBox="0 0 24 24"><path d="M12 3v8"/><path d="M6.3 7.2a8 8 0 1 0 11.4 0"/></svg>
@@ -91,9 +97,24 @@
     <div class="menu" id="menu" hidden></div>
 
     <footer class="foot">
-      <span id="acName">AC</span>
-      <span class="demo" id="demo">dados de teste</span>
+      <span id="message"></span>
+      <button class="link" id="logout">Sair da conta</button>
     </footer>
+
+    <section class="overlay" id="loading">
+      <div class="spinner"></div>
+      <p id="loadingText">A ligar ao hOn…</p>
+    </section>
+
+    <form class="overlay login" id="login" hidden>
+      <div class="login-icon"><svg viewBox="0 0 24 24"><path d="M12 2v20M4.9 4.9l14.2 14.2M2 12h20M4.9 19.1 19.1 4.9"/></svg></div>
+      <h1>Entrar no hOn</h1>
+      <p>Usa o email e a password da tua conta hOn. Ficam guardados no cofre do sistema.</p>
+      <input id="email" type="email" placeholder="Email" autocomplete="username" required />
+      <input id="password" type="password" placeholder="Password" autocomplete="current-password" required />
+      <button class="primary" id="loginButton" type="submit">Entrar</button>
+      <p class="error" id="loginError"></p>
+    </form>
   </main>
   <script src="main.js"></script>
 </body>

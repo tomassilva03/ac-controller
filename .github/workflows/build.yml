@@ -13,10 +13,8 @@ jobs:
       matrix:
         include:
           - os: macos-latest
-            args: --target universal-apple-darwin
-            bundle: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+            bundle: src-tauri/target/release/bundle/dmg/*.dmg
           - os: windows-latest
-            args: ""
             bundle: src-tauri/target/release/bundle/msi/*.msi
     runs-on: ${{ matrix.os }}
     steps:
@@ -25,14 +23,20 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
         with:
-          targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+      - name: Testar e compilar o hon-bridge
+        run: |
+          python -m pip install -r bridge/requirements.txt pytest
+          python -m pytest -q bridge/tests
+          python bridge/build.py
       - run: npm ci
-      - run: npx tauri build ${{ matrix.args }}
+      - run: npx tauri build
       - uses: actions/upload-artifact@v4
         with:
           name: ac-controller-${{ matrix.os }}

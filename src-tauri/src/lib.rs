@@ -1,9 +1,11 @@
-mod ac;
+mod bridge;
+mod session;
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use ac::{AcPatch, AcState};
+use serde_json::Value;
+use session::Session;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -11,7 +13,7 @@ use tauri::{
 };
 
 struct AppState {
-    ac: Mutex<AcState>,
+    session: Arc<Mutex<Session>>,
     /// Quando o painel foi escondido por perder o foco. Clicar no ícone da bandeja
     /// tira o foco ao painel antes do clique chegar, por isso ignoramos o clique
     /// que vem logo a seguir, senão o painel reabria.
@@ -24,16 +26,50 @@ struct TrayRect {
     size: PhysicalSize<f64>,
 }
 
-#[tauri::command]
-fn get_state(state: State<AppState>) -> AcState {
-    state.ac.lock().unwrap().clone()
+/// Corre `f` com a sessão numa thread à parte, para os pedidos ao hOn não
+/// bloquearem a interface.
+async fn with_session<T: Send + 'static>(
+    state: State<'_, AppState>,
+    f: impl FnOnce(&mut Session) -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    let session = state.session.clone();
+    tauri::async_runtime::spawn_blocking(move || f(&mut session.lock().unwrap()))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-fn update_state(patch: AcPatch, state: State<AppState>) -> AcState {
-    let mut ac = state.ac.lock().unwrap();
-    ac.apply(patch);
-    ac.clone()
+async fn status(state: State<'_, AppState>) -> Result<Value, String> {
+    with_session(state, |s| Ok(s.status())).await
+}
+
+#[tauri::command]
+async fn login(email: String, password: String, state: State<'_, AppState>) -> Result<Value, String> {
+    with_session(state, move |s| s.login(&email, &password)).await
+}
+
+#[tauri::command]
+async fn logout(state: State<'_, AppState>) -> Result<(), String> {
+    with_session(state, |s| {
+        s.logout();
+        Ok(())
+    })
+    .await
+}
+
+#[tauri::command]
+async fn select_ac(id: String, state: State<'_, AppState>) -> Result<Value, String> {
+    with_session(state, move |s| Ok(s.select(&id))).await
+}
+
+#[tauri::command]
+async fn get_state(state: State<'_, AppState>) -> Result<Value, String> {
+    with_session(state, |s| s.get_state()).await
+}
+
+#[tauri::command]
+async fn update_state(patch: Value, state: State<'_, AppState>) -> Result<Value, String> {
+    with_session(state, move |s| s.update_state(patch)).await
 }
 
 #[tauri::command]
@@ -100,12 +136,25 @@ fn show_panel(window: &WebviewWindow, tray: TrayRect) {
 
 pub fn run() {
     tauri::Builder::default()
-        .manage(AppState {
-            ac: Mutex::new(AcState::default()),
-            last_hidden: Mutex::new(None),
-        })
-        .invoke_handler(tauri::generate_handler![get_state, update_state, hide_panel])
+        .invoke_handler(tauri::generate_handler![
+            status,
+            login,
+            logout,
+            select_ac,
+            get_state,
+            update_state,
+            hide_panel
+        ])
         .setup(|app| {
+            let config_dir = app.path().app_config_dir()?;
+            let session = Arc::new(Mutex::new(Session::new(config_dir)));
+            // Entra logo no hOn com as credenciais guardadas, sem esperar pelo painel.
+            let background = session.clone();
+            std::thread::spawn(move || {
+                let _ = background.lock().unwrap().auto_login();
+            });
+            app.manage(AppState { session, last_hidden: Mutex::new(None) });
+
             // No macOS a app vive só na barra de menus, sem ícone na Dock.
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);

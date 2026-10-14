@@ -2,3 +2,6 @@ node_modules/
 src-tauri/target/
 src-tauri/gen/
 .DS_Store
+bridge/build/
+src-tauri/binaries/
+__pycache__/

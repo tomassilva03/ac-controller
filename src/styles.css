@@ -52,11 +52,22 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round
 
 /* Topo */
 .top { display: flex; align-items: center; justify-content: space-between; }
-.room { display: flex; align-items: center; gap: 8px; color: var(--text-dim); font-size: 14px; }
+.head-left { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ac-picker {
+  display: flex; align-items: center; gap: 6px; max-width: 220px;
+  font-size: 16px; font-weight: 700; text-align: left;
+  padding: 2px 6px; margin-left: -6px; border-radius: 8px;
+}
+.ac-picker span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ac-picker:hover { background: var(--tile); }
+.chev-inline { width: 14px; height: 14px; flex: none; color: var(--text-dim); }
+.room { display: flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: 13px; }
+.room .ico { width: 15px; height: 15px; }
 .room .ico { color: var(--cold); }
 .room-temp { color: var(--text); font-weight: 600; }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: #6b6460; transition: background .3s, box-shadow .3s; }
 .panel.on .dot { background: var(--blue); box-shadow: 0 0 8px var(--blue); }
+.panel.offline .dot { background: #e5484d; box-shadow: none; }
 
 .power {
   width: 50px; height: 50px; border-radius: 50%;
@@ -73,7 +84,7 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round
 }
 
 /* Unidade AC */
-.unit { position: relative; height: 150px; margin-top: 4px; display: flex; flex-direction: column; align-items: center; }
+.unit { position: relative; height: 150px; margin-top: 12px; display: flex; flex-direction: column; align-items: center; }
 .ac-body {
   position: relative; z-index: 1;
   width: 122px; height: 40px; border-radius: 10px;
@@ -181,6 +192,42 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round
 .menu button:hover { background: rgba(255, 255, 255, 0.08); }
 .menu button[aria-selected="true"]::after { content: "✓"; color: var(--accent); font-weight: 700; }
 
-.foot { display: flex; justify-content: space-between; margin-top: 12px; font-size: 11px; color: var(--text-faint); }
-.demo { color: rgba(255, 138, 61, 0.7); }
-.demo[hidden] { display: none; }
+.foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 12px; min-height: 16px; font-size: 11px; color: var(--text-faint); }
+#message { color: #ffb38a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.link { font-size: 11px; color: var(--text-faint); margin-left: auto; }
+.link:hover { color: var(--text-dim); text-decoration: underline; }
+[hidden] { display: none !important; }
+.tiles.three { grid-template-columns: repeat(3, 1fr); }
+.tiles.two { grid-template-columns: repeat(2, 1fr); }
+
+/* Carregar e login */
+.overlay {
+  position: absolute; inset: 0; z-index: 20;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  padding: 32px;
+  background: linear-gradient(180deg, #3b2822 0%, #2a1d19 45%, #1b1412 100%);
+  text-align: center;
+}
+.overlay p { font-size: 13px; color: var(--text-dim); line-height: 1.45; }
+.spinner {
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.15); border-top-color: var(--warm);
+  animation: spin .9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.login-icon { width: 56px; height: 56px; border-radius: 18px; display: grid; place-items: center; background: var(--blue); box-shadow: 0 8px 24px rgba(59, 130, 246, 0.45); }
+.login-icon svg { width: 28px; height: 28px; color: #fff; }
+.login h1 { font-size: 20px; font-weight: 700; }
+.login input {
+  width: 100%; padding: 12px 14px; border-radius: 12px;
+  background: rgba(255, 255, 255, 0.07); border: 1px solid var(--line);
+  color: var(--text); font: inherit; font-size: 14px; outline: none;
+  user-select: text; -webkit-user-select: text;
+}
+.login input:focus { border-color: rgba(79, 140, 255, 0.7); }
+.primary {
+  width: 100%; padding: 12px; border-radius: 12px;
+  background: var(--blue); color: #fff; font-weight: 700; font-size: 14px;
+}
+.primary:disabled { opacity: .6; cursor: default; }
+.login .error { color: #ff8a80; min-height: 18px; }
