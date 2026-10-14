@@ -256,6 +256,23 @@ $("logout").addEventListener("click", async () => {
   showLogin();
 });
 
+// Mostra a versão instalada e procura uma nova quando se carrega no botão.
+const updateButton = $("update");
+invoke("app_version").then((v) => (updateButton.textContent = `v${v} · Atualizar`));
+updateButton.addEventListener("click", async () => {
+  updateButton.disabled = true;
+  message("A procurar atualizações…");
+  try {
+    const next = await invoke("check_update");
+    // Se houver versão nova a app instala-a e reinicia sozinha.
+    message(next ? `A instalar a v${next}…` : "Já tens a versão mais recente.");
+  } catch (err) {
+    message("Não consegui procurar atualizações.");
+  } finally {
+    updateButton.disabled = false;
+  }
+});
+
 function openMenu(anchor, items, current, onPick, where) {
   closeMenu();
   anchor.classList.add("open");
@@ -324,6 +341,8 @@ function mockInvoke() {
       case "select_ac": s = { ...s, selected: args.id }; return { ...s };
       case "get_state": return { ...states[s.selected] };
       case "update_state": Object.assign(states[s.selected], args.patch); return { ...states[s.selected] };
+      case "app_version": return "0.0.0";
+      case "check_update": return null;
     }
   };
 }

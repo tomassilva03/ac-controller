@@ -90,6 +90,34 @@ async fn check_for_update(app: AppHandle) -> tauri_plugin_updater::Result<()> {
     Ok(())
 }
 
+#[tauri::command]
+fn app_version(app: AppHandle) -> String {
+    app.package_info().version.to_string()
+}
+
+/// Botão do painel: devolve a versão nova (que fica a instalar-se em fundo e
+/// reinicia a app) ou `None` se já estiver na mais recente.
+#[tauri::command]
+async fn check_update(app: AppHandle) -> Result<Option<String>, String> {
+    use tauri_plugin_updater::UpdaterExt;
+    let update = app
+        .updater()
+        .map_err(|e| e.to_string())?
+        .check()
+        .await
+        .map_err(|e| e.to_string())?;
+    let Some(update) = update else {
+        return Ok(None);
+    };
+    let version = update.version.clone();
+    tauri::async_runtime::spawn(async move {
+        if update.download_and_install(|_, _| {}, || {}).await.is_ok() {
+            app.restart();
+        }
+    });
+    Ok(Some(version))
+}
+
 fn toggle_panel(app: &AppHandle, tray: Rect) {
     let Some(window) = app.get_webview_window("main") else {
         return;
@@ -156,7 +184,9 @@ pub fn run() {
             select_ac,
             get_state,
             update_state,
-            hide_panel
+            hide_panel,
+            app_version,
+            check_update
         ])
         .setup(|app| {
             let config_dir = app.path().app_config_dir()?;
