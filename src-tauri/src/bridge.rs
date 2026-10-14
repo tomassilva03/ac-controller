@@ -25,8 +25,11 @@ fn bridge_path() -> Result<PathBuf, String> {
 }
 
 impl Bridge {
-    pub fn start() -> Result<Self, String> {
-        Self::start_with(Command::new(bridge_path()?))
+    /// Arranca o hon-bridge; o que ele regista vai para `log_file`.
+    pub fn start(log_file: &std::path::Path) -> Result<Self, String> {
+        let mut command = Command::new(bridge_path()?);
+        command.env("HON_BRIDGE_LOG", log_file);
+        Self::start_with(command)
     }
 
     pub fn start_with(mut command: Command) -> Result<Self, String> {

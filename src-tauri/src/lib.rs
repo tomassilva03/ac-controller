@@ -158,7 +158,8 @@ pub fn run() {
         ])
         .setup(|app| {
             let config_dir = app.path().app_config_dir()?;
-            let session = Arc::new(Mutex::new(Session::new(config_dir)));
+            let log_dir = app.path().app_log_dir()?;
+            let session = Arc::new(Mutex::new(Session::new(config_dir, log_dir)));
             // Entra logo no hOn com as credenciais guardadas, sem esperar pelo painel.
             let background = session.clone();
             std::thread::spawn(move || {

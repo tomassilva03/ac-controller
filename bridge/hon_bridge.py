@@ -15,6 +15,7 @@ Respostas:
 import asyncio
 import json
 import logging
+import os
 import sys
 from typing import Any, Dict, Optional
 
@@ -29,6 +30,9 @@ FAN_SPEEDS = {"high": "1", "mid": "2", "low": "3", "auto": "5"}
 AIRFLOW = {"swing": "8", "auto": "5", "top": "2", "middle": "4", "bottom": "6"}
 # Funções que só existem nalguns modelos: nome na app -> parâmetro do hOn.
 SWITCHES = {"eco": "ecoMode", "sleep": "silentSleepStatus"}
+
+
+_LOGGER = logging.getLogger("hon_bridge")
 
 
 def reverse(mapping: Dict[str, str], value: Any, default: str) -> str:
@@ -63,9 +67,25 @@ class Bridge:
                 return ac
         raise RuntimeError("ac_not_found")
 
+    @staticmethod
+    async def _ensure_commands(ac) -> None:
+        """O pyhOn às vezes não consegue carregar os comandos no login; tenta de novo."""
+        if "settings" in ac.commands:
+            return
+        _LOGGER.warning("%s sem comandos (%s); a recarregar", ac.nick_name, list(ac.commands))
+        try:
+            await ac.load_commands()
+        except Exception:  # pylint: disable=broad-except
+            _LOGGER.exception("load_commands falhou para %s", ac.nick_name)
+        _LOGGER.info("%s comandos depois de recarregar: %s", ac.nick_name, list(ac.commands))
+        if "settings" not in ac.commands:
+            raise RuntimeError("no_commands")
+
     async def login(self, email: str, password: str) -> Any:
         await self.close()
         self.hon = await Hon(email, password).create()
+        for ac in self._acs():
+            _LOGGER.info("AC %s (%s): comandos %s", ac.nick_name, ac.model_name, list(ac.commands))
         return [
             {"id": a.mac_address, "name": a.nick_name, "model": a.model_name}
             for a in self._acs()
@@ -94,11 +114,13 @@ class Bridge:
 
     async def state(self, mac: str) -> Any:
         ac = self._ac(mac)
+        await self._ensure_commands(ac)
         await ac.update(force=True)
         return self.describe(ac)
 
     async def set(self, mac: str, patch: Dict[str, Any]) -> Any:
         ac = self._ac(mac)
+        await self._ensure_commands(ac)
         await ac.update(force=True)
         if patch.get("power") is False:
             await ac.commands["stopProgram"].send()
@@ -143,7 +165,17 @@ class Bridge:
 
 
 async def main() -> None:
-    logging.disable(logging.CRITICAL)
+    # A app passa o caminho do ficheiro de log. O logger de autenticação do pyhOn
+    # fica desligado porque, quando o login falha, escreve páginas com tokens.
+    if log_path := os.environ.get("HON_BRIDGE_LOG"):
+        logging.basicConfig(
+            filename=log_path, level=logging.INFO, encoding="utf-8",
+            format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        )
+        logging.getLogger("pyhon.connection.auth").disabled = True
+        logging.getLogger("pyhon.connection.handler.auth").disabled = True
+    else:
+        logging.disable(logging.CRITICAL)
     bridge = Bridge()
     loop = asyncio.get_running_loop()
     while True:
@@ -160,6 +192,7 @@ async def main() -> None:
         except HonAuthenticationError:
             response = {"id": request.get("id"), "ok": False, "error": "auth_failed"}
         except Exception as error:  # pylint: disable=broad-except
+            _LOGGER.exception("pedido %s falhou", request.get("cmd"))
             response = {"id": request.get("id"), "ok": False, "error": str(error) or type(error).__name__}
         sys.stdout.write(json.dumps(response) + "\n")
         sys.stdout.flush()

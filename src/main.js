@@ -29,6 +29,7 @@ const ERRORS = {
   bridge_closed: "Perdi a ligação ao hOn. Tenta outra vez.",
   command_rejected: "O AC recusou o comando.",
   no_ac: "Não há nenhum AC nesta conta.",
+  no_commands: "O hOn não devolveu os comandos deste AC. Tenta daqui a pouco.",
 };
 const errorText = (e) => ERRORS[String(e)] ?? `Erro: ${e}`;
 

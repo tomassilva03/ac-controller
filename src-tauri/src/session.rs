@@ -21,6 +21,7 @@ struct Config {
 
 pub struct Session {
     config_path: PathBuf,
+    log_file: PathBuf,
     config: Config,
     bridge: Option<Bridge>,
     acs: Vec<Value>,
@@ -28,13 +29,15 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn new(config_dir: PathBuf) -> Self {
+    pub fn new(config_dir: PathBuf, log_dir: PathBuf) -> Self {
+        let _ = std::fs::create_dir_all(&log_dir);
+        let log_file = log_dir.join("hon-bridge.log");
         let config_path = config_dir.join("config.json");
         let config = std::fs::read_to_string(&config_path)
             .ok()
             .and_then(|s| serde_json::from_str(&s).ok())
             .unwrap_or_default();
-        Self { config_path, config, bridge: None, acs: vec![], logged_in: false }
+        Self { config_path, log_file, config, bridge: None, acs: vec![], logged_in: false }
     }
 
     fn save_config(&self) {
@@ -135,7 +138,7 @@ impl Session {
 
     fn bridge(&mut self) -> Result<&mut Bridge, String> {
         if !self.bridge.as_mut().is_some_and(|b| b.is_alive()) {
-            self.bridge = Some(Bridge::start()?);
+            self.bridge = Some(Bridge::start(&self.log_file)?);
         }
         Ok(self.bridge.as_mut().unwrap())
     }

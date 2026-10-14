@@ -62,3 +62,33 @@ def test_set_sends_settings_and_stop(monkeypatch):
     assert ac.commands["settings"].sent == 1
     asyncio.run(b.set("aa", {"power": False}))
     assert ac.commands["stopProgram"].sent == 1
+
+
+def test_missing_commands_are_reloaded():
+    ac = FakeAc()
+    full = ac.commands
+    ac.commands = {}
+
+    async def load_commands():
+        ac.commands = full
+    ac.load_commands = load_commands
+    b = hon_bridge.Bridge()
+    b._ac = lambda mac: ac
+    assert asyncio.run(b.state("aa"))["targetTemp"] == 22
+
+
+def test_still_missing_commands_give_clear_error():
+    ac = FakeAc()
+    ac.commands = {}
+
+    async def load_commands():
+        pass
+    ac.load_commands = load_commands
+    b = hon_bridge.Bridge()
+    b._ac = lambda mac: ac
+    try:
+        asyncio.run(b.state("aa"))
+    except RuntimeError as e:
+        assert str(e) == "no_commands"
+    else:
+        raise AssertionError("devia falhar")
