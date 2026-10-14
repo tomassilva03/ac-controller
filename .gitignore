@@ -5,3 +5,8 @@ src-tauri/gen/
 bridge/build/
 src-tauri/binaries/
 __pycache__/
+
+# Chaves de assinatura das atualizações (nunca vão para o GitHub)
+keys/
+*.key
+*.key.pub
