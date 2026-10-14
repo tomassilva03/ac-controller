@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AC Controller</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="panel" id="panel" data-mode="cool">
+    <header class="top">
+      <div class="room">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M14 4v10.5a4 4 0 1 1-4 0V4a2 2 0 1 1 4 0Z"/><path d="M12 9v7"/></svg>
+        <span class="room-label">Sala</span>
+        <span class="room-temp" id="roomTemp">--°C</span>
+        <span class="dot" id="statusDot"></span>
+      </div>
+      <button class="power" id="power" aria-label="Ligar ou desligar">
+        <svg viewBox="0 0 24 24"><path d="M12 3v8"/><path d="M6.3 7.2a8 8 0 1 0 11.4 0"/></svg>
+      </button>
+    </header>
+
+    <section class="unit" aria-hidden="true">
+      <div class="ac-body">
+        <div class="ac-display"><span id="unitTemp">22</span><i></i></div>
+        <div class="ac-vent"></div>
+      </div>
+      <svg class="airflow" viewBox="0 0 260 90" preserveAspectRatio="none">
+        <path d="M30 4 C 22 40, 14 60, 4 86"/>
+        <path d="M60 4 C 55 40, 48 62, 42 86"/>
+        <path d="M90 4 C 88 40, 84 62, 82 86"/>
+        <path d="M120 4 C 120 40, 120 62, 120 86"/>
+        <path d="M150 4 C 152 40, 156 62, 158 86"/>
+        <path d="M180 4 C 185 40, 192 62, 198 86"/>
+        <path d="M210 4 C 218 40, 226 60, 236 86"/>
+        <path d="M236 4 C 246 36, 252 56, 258 80"/>
+      </svg>
+    </section>
+
+    <section class="temp-row">
+      <div class="big-temp">
+        <span id="targetTemp">22</span><sup>°C</sup>
+      </div>
+      <button class="eco" id="eco" role="switch" aria-checked="false">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 2 2 4.2 2 8 0 5.5-4.8 10-10 10Z"/><path d="M2 21c0-3 1.9-5.4 5.1-6"/></svg>
+        <span>Eco</span>
+        <span class="switch"><i></i></span>
+      </button>
+    </section>
+
+    <section class="slider-row">
+      <button class="round" id="minus" aria-label="Baixar temperatura">
+        <svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg>
+      </button>
+      <div class="slider">
+        <input type="range" id="slider" min="16" max="30" step="1" value="22" aria-label="Temperatura" />
+        <div class="slider-labels"><span>16°</span><span>30°</span></div>
+      </div>
+      <button class="round" id="plus" aria-label="Subir temperatura">
+        <svg viewBox="0 0 24 24"><path d="M6 12h12"/><path d="M12 6v12"/></svg>
+      </button>
+    </section>
+
+    <section class="tiles">
+      <button class="tile" data-key="mode">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M12 2v20M4.9 4.9l14.2 14.2M2 12h20M4.9 19.1 19.1 4.9"/><path d="m9 4 3 2 3-2M9 20l3-2 3 2M4 9l2 3-2 3M20 9l-2 3 2 3"/></svg>
+        <span class="tile-label">Modo</span>
+        <span class="tile-value" data-value="mode">Frio</span>
+        <svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <button class="tile" data-key="fanSpeed">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M12 12c-3-5-1-9 2-9 2 0 3 2 1.5 4.5L12 12Zm0 0c5-3 9-1 9 2 0 2-2 3-4.5 1.5L12 12Zm0 0c3 5 1 9-2 9-2 0-3-2-1.5-4.5L12 12Zm0 0c-5 3-9 1-9-2 0-2 2-3 4.5-1.5L12 12Z"/></svg>
+        <span class="tile-label">Ventilação</span>
+        <span class="tile-value" data-value="fanSpeed">Auto</span>
+        <svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <button class="tile" data-key="sleep">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"/></svg>
+        <span class="tile-label">Sono</span>
+        <span class="tile-value" data-value="sleep">Off</span>
+        <span class="tile-dot"></span>
+      </button>
+      <button class="tile" data-key="airflow">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M3 8h11a3 3 0 1 0-3-3"/><path d="M3 12h16a3 3 0 1 1-3 3"/><path d="M3 16h7"/></svg>
+        <span class="tile-label">Fluxo de ar</span>
+        <span class="tile-value" data-value="airflow">Oscilar</span>
+        <svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+    </section>
+
+    <div class="menu" id="menu" hidden></div>
+
+    <footer class="foot">
+      <span id="acName">AC</span>
+      <span class="demo" id="demo">dados de teste</span>
+    </footer>
+  </main>
+  <script src="main.js"></script>
+</body>
+</html>

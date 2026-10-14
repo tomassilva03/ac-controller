@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3b2822"/><stop offset="1" stop-color="#1b1412"/>
+    </linearGradient>
+    <linearGradient id="unit" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#cfd5dd"/>
+    </linearGradient>
+    <linearGradient id="air" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4f8cff"/><stop offset="1" stop-color="#ff8a3d"/>
+    </linearGradient>
+  </defs>
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#bg)"/>
+  <rect x="232" y="300" width="560" height="190" rx="56" fill="url(#unit)"/>
+  <rect x="290" y="436" width="444" height="16" rx="8" fill="#b9c0ca"/>
+  <circle cx="712" cy="350" r="14" fill="#ff8a3d"/>
+  <g fill="none" stroke="url(#air)" stroke-width="30" stroke-linecap="round">
+    <path d="M330 560 C 310 630, 290 680, 270 740"/>
+    <path d="M440 560 C 432 630, 426 680, 420 740"/>
+    <path d="M584 560 C 592 630, 598 680, 604 740"/>
+    <path d="M694 560 C 714 630, 734 680, 754 740"/>
+  </g>
+</svg>
