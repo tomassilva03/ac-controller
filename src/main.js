@@ -34,6 +34,7 @@ const ERRORS = {
 const errorText = (e) => ERRORS[String(e)] ?? `Erro: ${e}`;
 
 const tauri = window.__TAURI__;
+if (navigator.userAgent.includes("Windows")) document.documentElement.classList.add("windows");
 const invoke = tauri ? (cmd, args) => tauri.core.invoke(cmd, args) : mockInvoke();
 
 const $ = (id) => document.getElementById(id);
@@ -48,7 +49,7 @@ let state = null; // estado do AC escolhido
 const COLD = { top: [30, 52, 86], mid: [19, 34, 58], bottom: [11, 20, 36], glow: [90, 150, 255] };
 const WARM = { top: [59, 40, 34], mid: [42, 29, 25], bottom: [27, 20, 18], glow: [255, 140, 70] };
 const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
-const rgb = (c) => `rgb(${c.join(",")})`;
+const rgba = (c, a) => `rgba(${c.join(",")}, ${a})`;
 
 // Mistura o fundo entre azul e laranja conforme a temperatura escolhida.
 function paintTemperature(temp) {
@@ -56,12 +57,43 @@ function paintTemperature(temp) {
   const max = state?.maxTemp ?? 30;
   const t = Math.min(1, Math.max(0, (temp - min) / (max - min)));
   const style = panel.style;
-  style.setProperty("--bg-top", rgb(mix(COLD.top, WARM.top, t)));
-  style.setProperty("--bg-mid", rgb(mix(COLD.mid, WARM.mid, t)));
-  style.setProperty("--bg-bottom", rgb(mix(COLD.bottom, WARM.bottom, t)));
+  // Semi-transparente para se ver o vidro do sistema por trás.
+  style.setProperty("--bg-top", rgba(mix(COLD.top, WARM.top, t), 0.62));
+  style.setProperty("--bg-mid", rgba(mix(COLD.mid, WARM.mid, t), 0.7));
+  style.setProperty("--bg-bottom", rgba(mix(COLD.bottom, WARM.bottom, t), 0.8));
   style.setProperty("--bg-glow", `rgba(${mix(COLD.glow, WARM.glow, t).join(",")}, 0.16)`);
   // O preenchimento do slider vai até ao centro do botão (30px de largura).
   style.setProperty("--fill", `calc(15px + (100% - 30px) * ${t})`);
+}
+
+const ICONS = {
+  cool: '<svg viewBox="0 0 24 24"><path d="M12 2v20M4.9 4.9l14.2 14.2M2 12h20M4.9 19.1 19.1 4.9"/></svg>',
+  heat: '<svg viewBox="0 0 24 24"><path d="M12 22a6 6 0 0 0 6-6c0-4-3-6-4-10-2 2-3 4-3 6-1-1-2-2-2-4-2 2-3 5-3 8a6 6 0 0 0 6 6Z"/></svg>',
+  done: '<svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg>',
+  dry: '<svg viewBox="0 0 24 24"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11Z"/></svg>',
+  fan: '<svg viewBox="0 0 24 24"><path d="M3 8h11a3 3 0 1 0-3-3"/><path d="M3 12h16a3 3 0 1 1-3 3"/><path d="M3 16h7"/></svg>',
+  off: '<svg viewBox="0 0 24 24"><path d="M12 3v8"/><path d="M6.3 7.2a8 8 0 1 0 11.4 0"/></svg>',
+};
+
+// O que o AC está a fazer, a partir do modo e da diferença entre a divisão e o alvo.
+function describeStatus(s) {
+  if (!s.power) return { kind: "off", title: "Desligado", sub: "Toca no botão para ligar" };
+  if (s.mode === "dry") return { kind: "dry", title: "A desumidificar", sub: "" };
+  if (s.mode === "fan") return { kind: "fan", title: "Só ventilação", sub: "" };
+  const diff = s.roomTemp ? s.roomTemp - s.targetTemp : 0;
+  const away = `Faltam ${Math.max(1, Math.round(Math.abs(diff)))}°C`;
+  if (diff > 0.5 && s.mode !== "heat") return { kind: "cool", title: "A arrefecer", sub: away };
+  if (diff < -0.5 && s.mode !== "cool") return { kind: "heat", title: "A aquecer", sub: away };
+  return { kind: "done", title: "Temperatura atingida", sub: `A manter ${s.targetTemp}°C` };
+}
+
+function renderStatus() {
+  const st = describeStatus(state);
+  $("status").dataset.kind = st.kind;
+  $("statusIcon").innerHTML = ICONS[st.kind];
+  $("statusTitle").textContent = st.title;
+  $("statusSub").textContent = st.sub;
+  $("statusSub").hidden = !st.sub;
 }
 
 function label(key, value) {
@@ -96,6 +128,9 @@ function render() {
   panel.dataset.mode = state.mode;
   $("acName").textContent = state.name;
   $("roomTemp").textContent = state.roomTemp ? `${Math.round(state.roomTemp)}°C` : "--°C";
+  $("outdoor").hidden = !state.outdoorTemp;
+  $("outdoorTemp").textContent = `${Math.round(state.outdoorTemp ?? 0)}°C`;
+  renderStatus();
   $("targetTemp").textContent = state.targetTemp;
   $("unitTemp").textContent = state.power ? state.targetTemp : "--";
   const slider = $("slider");
@@ -329,7 +364,7 @@ function mockInvoke() {
   const states = Object.fromEntries(
     acs.map((ac, i) => [ac.id, {
       name: ac.name, online: true, power: i === 0, mode: "cool", targetTemp: 22 + i,
-      roomTemp: 25 + i, fanSpeed: "auto", sleep: false, airflow: "swing",
+      roomTemp: 25 + i, outdoorTemp: 31, fanSpeed: "auto", sleep: false, airflow: "swing",
       minTemp: 16, maxTemp: 30, features: ["sleep", "airflow"],
     }]),
   );

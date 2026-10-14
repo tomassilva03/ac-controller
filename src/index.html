@@ -18,6 +18,7 @@
           <svg class="ico" viewBox="0 0 24 24"><path d="M14 4v10.5a4 4 0 1 1-4 0V4a2 2 0 1 1 4 0Z"/><path d="M12 9v7"/></svg>
           <span class="room-label">Divisão</span>
           <span class="room-temp" id="roomTemp">--°C</span>
+          <span class="outdoor" id="outdoor" hidden>· Fora <b id="outdoorTemp">--°C</b></span>
           <span class="dot" id="statusDot" title="Ligação ao AC"></span>
         </div>
       </div>
@@ -46,6 +47,13 @@
     <section class="temp-row">
       <div class="big-temp">
         <span id="targetTemp">22</span><sup>°C</sup>
+      </div>
+      <div class="status" id="status">
+        <span class="status-icon" id="statusIcon"></span>
+        <span class="status-text">
+          <span class="status-title" id="statusTitle">--</span>
+          <span class="status-sub" id="statusSub"></span>
+        </span>
       </div>
       <button class="eco" id="eco" role="switch" aria-checked="false">
         <svg class="ico" viewBox="0 0 24 24"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 2 2 4.2 2 8 0 5.5-4.8 10-10 10Z"/><path d="M2 21c0-3 1.9-5.4 5.1-6"/></svg>

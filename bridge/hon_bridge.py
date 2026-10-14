@@ -105,6 +105,7 @@ class Bridge:
             "mode": reverse(MODES, ac.get("machMode", "1"), "cool"),
             "targetTemp": int(float(ac.get("tempSel", 22) or 22)),
             "roomTemp": float(ac.get("tempIndoor", 0) or 0),
+            "outdoorTemp": float(ac.get("tempOutdoor", 0) or 0),
             "fanSpeed": reverse(FAN_SPEEDS, ac.get("windSpeed", "5"), "auto"),
             "airflow": reverse(AIRFLOW, ac.get("windDirectionVertical", "5"), "auto"),
             "features": [k for k, p in {**SWITCHES, "airflow": "windDirectionVertical"}.items() if p in params],

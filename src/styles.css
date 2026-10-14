@@ -40,19 +40,22 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 
 svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
+/* O painel ocupa a janela toda; o vidro (desfoque) é aplicado pelo sistema por
+   trás da janela, por isso o fundo do painel é semi-transparente. */
 .panel {
   position: relative;
-  width: 340px;
-  margin: 10px auto;
+  min-height: 100vh;
   padding: 20px 18px 14px;
   border-radius: 26px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   background:
     radial-gradient(120% 60% at 50% 18%, var(--bg-glow), transparent 60%),
     linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 45%, var(--bg-bottom) 100%);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
   overflow: hidden;
 }
+/* No Windows 11 a janela já tem cantos arredondados (pequenos). */
+.windows .panel { border-radius: 8px; }
 
 .ico { width: 18px; height: 18px; flex: none; }
 
@@ -71,6 +74,8 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round
 .room .ico { width: 15px; height: 15px; }
 .room .ico { color: var(--cold); }
 .room-temp { color: var(--text); font-weight: 600; }
+.outdoor { white-space: nowrap; }
+.outdoor b { color: var(--text); font-weight: 600; }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: #6b6460; transition: background .3s, box-shadow .3s; }
 .panel.on .dot { background: var(--blue); box-shadow: 0 0 8px var(--blue); }
 .panel.offline .dot { background: #e5484d; box-shadow: none; }
@@ -125,6 +130,24 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round
 .big-temp span { font-size: 72px; letter-spacing: -2px; font-variant-numeric: tabular-nums; }
 .big-temp sup { font-size: 18px; font-weight: 500; color: var(--accent); margin: 34px 0 0 4px; }
 .panel:not(.on) .big-temp { color: var(--text-dim); }
+
+/* Estado: o que o AC está a fazer agora */
+.status { display: flex; align-items: center; gap: 10px; margin-left: auto; margin-right: 2px; }
+.status-icon {
+  width: 34px; height: 34px; border-radius: 50%; flex: none;
+  display: grid; place-items: center;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent), 0 0 18px var(--glow);
+}
+.status-icon svg { width: 17px; height: 17px; }
+.status-text { display: flex; flex-direction: column; gap: 2px; text-align: right; }
+.status-title { font-size: 13.5px; font-weight: 650; white-space: nowrap; }
+.status-sub { font-size: 11.5px; color: var(--text-dim); white-space: nowrap; }
+.status[data-kind="done"] .status-icon { color: #4ade80; background: rgba(74, 222, 128, 0.14); box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.3); }
+.panel:not(.on) .status-icon { color: var(--text-dim); background: var(--tile); box-shadow: 0 0 0 1px var(--line); }
+.panel:not(.on) .status-title { color: var(--text-dim); }
+.status:has(~ .eco:not([hidden])) { display: none; }
 
 .eco {
   display: flex; align-items: center; gap: 8px;
@@ -190,7 +213,8 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round
 .menu {
   position: absolute; z-index: 10; min-width: 130px;
   padding: 5px; border-radius: 12px;
-  background: rgba(40, 30, 27, 0.98);
+  background: rgba(28, 30, 38, 0.97);
+  backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
 }

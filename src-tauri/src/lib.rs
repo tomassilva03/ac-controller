@@ -1,5 +1,6 @@
 mod bridge;
 mod session;
+mod tray;
 
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -64,13 +65,21 @@ async fn select_ac(id: String, state: State<'_, AppState>) -> Result<Value, Stri
 }
 
 #[tauri::command]
-async fn get_state(state: State<'_, AppState>) -> Result<Value, String> {
-    with_session(state, |s| s.get_state()).await
+async fn get_state(app: AppHandle, state: State<'_, AppState>) -> Result<Value, String> {
+    let result = with_session(state, |s| s.get_state()).await?;
+    tray::show_state(&app, &result);
+    Ok(result)
 }
 
 #[tauri::command]
-async fn update_state(patch: Value, state: State<'_, AppState>) -> Result<Value, String> {
-    with_session(state, move |s| s.update_state(patch)).await
+async fn update_state(
+    patch: Value,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<Value, String> {
+    let result = with_session(state, move |s| s.update_state(patch)).await?;
+    tray::show_state(&app, &result);
+    Ok(result)
 }
 
 #[tauri::command]
@@ -193,9 +202,19 @@ pub fn run() {
             let log_dir = app.path().app_log_dir()?;
             let session = Arc::new(Mutex::new(Session::new(config_dir, log_dir)));
             // Entra logo no hOn com as credenciais guardadas, sem esperar pelo painel.
+            // Depois vai lendo o estado de 2 em 2 minutos para o ícone da bandeja
+            // estar sempre certo, mesmo com o painel fechado.
             let background = session.clone();
+            let handle = app.handle().clone();
             std::thread::spawn(move || {
                 let _ = background.lock().unwrap().auto_login();
+                loop {
+                    let state = background.lock().unwrap().get_state();
+                    if let Ok(state) = state {
+                        tray::show_state(&handle, &state);
+                    }
+                    std::thread::sleep(Duration::from_secs(120));
+                }
             });
             app.manage(AppState { session, last_hidden: Mutex::new(None) });
 

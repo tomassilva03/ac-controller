@@ -18,10 +18,18 @@
         "resizable": false,
         "decorations": false,
         "transparent": true,
-        "shadow": false,
+        "shadow": true,
         "alwaysOnTop": true,
         "skipTaskbar": true,
-        "visible": false
+        "visible": false,
+        "windowEffects": {
+          "effects": [
+            "acrylic",
+            "hudWindow"
+          ],
+          "state": "active",
+          "radius": 26
+        }
       }
     ],
     "security": {
