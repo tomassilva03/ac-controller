@@ -43,6 +43,26 @@ let state = null; // estado do AC escolhido
 
 // ---------- desenhar ----------
 
+// Cores do fundo nos extremos: 16 °C (frio, azul) e 30 °C (quente, laranja).
+const COLD = { top: [30, 52, 86], mid: [19, 34, 58], bottom: [11, 20, 36], glow: [90, 150, 255] };
+const WARM = { top: [59, 40, 34], mid: [42, 29, 25], bottom: [27, 20, 18], glow: [255, 140, 70] };
+const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+const rgb = (c) => `rgb(${c.join(",")})`;
+
+// Mistura o fundo entre azul e laranja conforme a temperatura escolhida.
+function paintTemperature(temp) {
+  const min = state?.minTemp ?? 16;
+  const max = state?.maxTemp ?? 30;
+  const t = Math.min(1, Math.max(0, (temp - min) / (max - min)));
+  const style = panel.style;
+  style.setProperty("--bg-top", rgb(mix(COLD.top, WARM.top, t)));
+  style.setProperty("--bg-mid", rgb(mix(COLD.mid, WARM.mid, t)));
+  style.setProperty("--bg-bottom", rgb(mix(COLD.bottom, WARM.bottom, t)));
+  style.setProperty("--bg-glow", `rgba(${mix(COLD.glow, WARM.glow, t).join(",")}, 0.16)`);
+  // O preenchimento do slider vai até ao centro do botão (30px de largura).
+  style.setProperty("--fill", `calc(15px + (100% - 30px) * ${t})`);
+}
+
 function label(key, value) {
   if (key === "sleep") return value ? "On" : "Off";
   return OPTIONS[key].find(([v]) => v === value)?.[1] ?? value;
@@ -81,6 +101,7 @@ function render() {
   slider.min = state.minTemp ?? 16;
   slider.max = state.maxTemp ?? 30;
   slider.value = state.targetTemp;
+  paintTemperature(state.targetTemp);
   document.querySelector(".slider-labels").innerHTML =
     `<span>${slider.min}°</span><span>${slider.max}°</span>`;
   $("eco").hidden = !features.includes("eco");
