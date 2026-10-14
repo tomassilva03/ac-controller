@@ -7,9 +7,8 @@ use ac::{AcPatch, AcState};
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, State, WebviewWindow, WindowEvent,
+    AppHandle, Manager, PhysicalPosition, PhysicalSize, Rect, State, WebviewWindow, WindowEvent,
 };
-use tauri_plugin_positioner::{Position, WindowExt};
 
 struct AppState {
     ac: Mutex<AcState>,
@@ -17,6 +16,12 @@ struct AppState {
     /// tira o foco ao painel antes do clique chegar, por isso ignoramos o clique
     /// que vem logo a seguir, senão o painel reabria.
     last_hidden: Mutex<Option<Instant>>,
+}
+
+/// Posição do ícone da bandeja em píxeis físicos.
+struct TrayRect {
+    position: PhysicalPosition<f64>,
+    size: PhysicalSize<f64>,
 }
 
 #[tauri::command]
@@ -38,12 +43,7 @@ fn hide_panel(app: AppHandle) {
     }
 }
 
-#[cfg(target_os = "macos")]
-const PANEL_POSITION: Position = Position::TrayCenter;
-#[cfg(not(target_os = "macos"))]
-const PANEL_POSITION: Position = Position::TrayBottomCenter;
-
-fn toggle_panel(app: &AppHandle) {
+fn toggle_panel(app: &AppHandle, tray: Rect) {
     let Some(window) = app.get_webview_window("main") else {
         return;
     };
@@ -60,18 +60,46 @@ fn toggle_panel(app: &AppHandle) {
     if just_hidden {
         return;
     }
-    show_panel(&window);
+    let scale = window.scale_factor().unwrap_or(1.0);
+    show_panel(
+        &window,
+        TrayRect {
+            position: tray.position.to_physical(scale),
+            size: tray.size.to_physical(scale),
+        },
+    );
 }
 
-fn show_panel(window: &WebviewWindow) {
-    let _ = window.move_window(PANEL_POSITION);
+/// Mostra o painel colado ao ícone: por cima quando a barra está em baixo
+/// (Windows), por baixo quando está em cima (macOS), sem sair do ecrã.
+fn show_panel(window: &WebviewWindow, tray: TrayRect) {
+    let center_x = tray.position.x + tray.size.width / 2.0;
+    let center_y = tray.position.y + tray.size.height / 2.0;
+    if let (Ok(Some(monitor)), Ok(win)) = (
+        window.monitor_from_point(center_x, center_y),
+        window.outer_size(),
+    ) {
+        let area = monitor.work_area();
+        let (left, top) = (area.position.x as f64, area.position.y as f64);
+        let right = left + area.size.width as f64;
+        let bottom = top + area.size.height as f64;
+        let (w, h) = (win.width as f64, win.height as f64);
+
+        let x = (center_x - w / 2.0).clamp(left, (right - w).max(left));
+        let screen_middle = monitor.position().y as f64 + monitor.size().height as f64 / 2.0;
+        let y = if center_y > screen_middle {
+            bottom - h
+        } else {
+            top.max(tray.position.y + tray.size.height)
+        };
+        let _ = window.set_position(PhysicalPosition::new(x.round() as i32, y.round() as i32));
+    }
     let _ = window.show();
     let _ = window.set_focus();
 }
 
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_positioner::init())
         .manage(AppState {
             ac: Mutex::new(AcState::default()),
             last_hidden: Mutex::new(None),
@@ -96,14 +124,14 @@ pub fn run() {
                     }
                 })
                 .on_tray_icon_event(|tray, event| {
-                    tauri_plugin_positioner::on_tray_event(tray.app_handle(), &event);
                     if let TrayIconEvent::Click {
                         button: MouseButton::Left,
                         button_state: MouseButtonState::Up,
+                        rect,
                         ..
                     } = event
                     {
-                        toggle_panel(tray.app_handle());
+                        toggle_panel(tray.app_handle(), rect);
                     }
                 })
                 .build(app)?;

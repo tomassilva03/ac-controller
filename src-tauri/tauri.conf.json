@@ -14,7 +14,7 @@
         "label": "main",
         "title": "AC Controller",
         "width": 360,
-        "height": 560,
+        "height": 540,
         "resizable": false,
         "decorations": false,
         "transparent": true,
