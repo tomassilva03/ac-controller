@@ -92,3 +92,35 @@ def test_still_missing_commands_give_clear_error():
         assert str(e) == "no_commands"
     else:
         raise AssertionError("devia falhar")
+
+
+def test_power_off_ignores_hon_error(monkeypatch):
+    async def no_sleep(_):
+        pass
+
+    async def fail():
+        raise hon_bridge.ApiError("Can't send command")
+    monkeypatch.setattr(hon_bridge.asyncio, "sleep", no_sleep)
+    ac = FakeAc()
+    ac.data["onOffStatus"] = "1"
+    ac.commands["stopProgram"].send = fail
+    b = hon_bridge.Bridge()
+    b._ac = lambda mac: ac
+    assert asyncio.run(b.set("aa", {"power": False}))["power"] is False
+
+
+def test_commands_reload_retries(monkeypatch):
+    async def no_sleep(_):
+        pass
+    monkeypatch.setattr(hon_bridge.asyncio, "sleep", no_sleep)
+    ac = FakeAc()
+    settings = ac.commands
+    ac.commands, calls = {}, []
+
+    async def load_commands():
+        calls.append(1)
+        if len(calls) == 2:
+            ac.commands = settings
+    ac.load_commands = load_commands
+    asyncio.run(hon_bridge.Bridge._ensure_commands(ac))
+    assert len(calls) == 2

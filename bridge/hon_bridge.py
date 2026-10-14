@@ -20,7 +20,7 @@ import sys
 from typing import Any, Dict, Optional
 
 from pyhon import Hon
-from pyhon.exceptions import HonAuthenticationError
+from pyhon.exceptions import ApiError, HonAuthenticationError
 
 # Valores do hOn para o machMode do AC.
 MODES = {"auto": "0", "cool": "1", "dry": "2", "heat": "4", "fan": "6"}
@@ -69,15 +69,18 @@ class Bridge:
 
     @staticmethod
     async def _ensure_commands(ac) -> None:
-        """O pyhOn às vezes não consegue carregar os comandos no login; tenta de novo."""
-        if "settings" in ac.commands:
-            return
-        _LOGGER.warning("%s sem comandos (%s); a recarregar", ac.nick_name, list(ac.commands))
-        try:
-            await ac.load_commands()
-        except Exception:  # pylint: disable=broad-except
-            _LOGGER.exception("load_commands falhou para %s", ac.nick_name)
-        _LOGGER.info("%s comandos depois de recarregar: %s", ac.nick_name, list(ac.commands))
+        """O hOn às vezes falha ao devolver os comandos no login; tenta de novo
+        algumas vezes, porque costuma responder bem passados uns segundos."""
+        for attempt in range(4):
+            if "settings" in ac.commands:
+                return
+            if attempt:
+                await asyncio.sleep(3)
+            _LOGGER.warning("%s sem comandos (%s); a recarregar", ac.nick_name, list(ac.commands))
+            try:
+                await ac.load_commands()
+            except Exception:  # pylint: disable=broad-except
+                _LOGGER.exception("load_commands falhou para %s", ac.nick_name)
         if "settings" not in ac.commands:
             raise RuntimeError("no_commands")
 
@@ -123,7 +126,15 @@ class Bridge:
         await self._ensure_commands(ac)
         await ac.update(force=True)
         if patch.get("power") is False:
-            await ac.commands["stopProgram"].send()
+            # O hOn responde muitas vezes com erro ao stopProgram, mas o AC
+            # desliga-se na mesma uns segundos depois.
+            try:
+                await ac.commands["stopProgram"].send()
+            except ApiError:
+                _LOGGER.warning("stopProgram devolveu erro; o AC costuma desligar-se na mesma")
+            await asyncio.sleep(1.5)
+            await ac.update(force=True)
+            return {**self.describe(ac), "power": False}
         else:
             values: Dict[str, Any] = {}
             if patch.get("power"):
