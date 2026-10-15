@@ -25,6 +25,18 @@ Cada push para `main` publica uma versão nova nas [Releases](../../releases) (`
 
 As versões são assinadas com a chave dos secrets `TAURI_SIGNING_PRIVATE_KEY` e `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`; a chave pública está em `src-tauri/tauri.conf.json`. Sem essa chave a app instalada recusa as atualizações.
 
+## Instalar no Mac
+
+A app não é assinada por um programador registado na Apple, por isso, na primeira
+instalação, o macOS pode dizer que está danificada ou que não pode ser verificada.
+Depois de a copiar para Aplicações, corre no Terminal:
+
+```
+xattr -cr "/Applications/AC Controller.app"
+```
+
+As atualizações automáticas não precisam disto.
+
 ## Estrutura
 
 - `src/` interface (HTML, CSS e JS, sem framework)
