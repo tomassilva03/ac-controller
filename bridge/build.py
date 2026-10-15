@@ -23,7 +23,7 @@ def main() -> None:
         [sys.executable, "-m", "PyInstaller", "--onefile", "--clean",
          "--name", "hon-bridge", "--distpath", str(build / "dist"),
          "--workpath", str(build / "work"), "--specpath", str(build),
-         "--collect-data", "pyhon",
+         "--collect-data", "pyhon", "--collect-data", "certifi",
          str(ROOT / "bridge" / "hon_bridge.py")],
         check=True,
     )

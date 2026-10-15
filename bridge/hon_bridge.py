@@ -19,8 +19,15 @@ import os
 import sys
 from typing import Any, Dict, Optional
 
-from pyhon import Hon
-from pyhon.exceptions import ApiError, HonAuthenticationError
+import certifi
+
+# O Python empacotado no macOS não usa os certificados do sistema, por isso as
+# ligações HTTPS ao hOn falhavam ("unable to get local issuer certificate").
+# Usa-se a lista de certificados do certifi, que vai dentro do executável.
+os.environ.setdefault("SSL_CERT_FILE", certifi.where())
+
+from pyhon import Hon  # noqa: E402
+from pyhon.exceptions import ApiError, HonAuthenticationError  # noqa: E402
 
 # Valores do hOn para o machMode do AC.
 MODES = {"auto": "0", "cool": "1", "dry": "2", "heat": "4", "fan": "6"}
