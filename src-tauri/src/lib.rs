@@ -178,25 +178,72 @@ fn toggle_panel(app: &AppHandle, tray: Rect) {
     if just_hidden {
         return;
     }
-    let scale = window.scale_factor().unwrap_or(1.0);
-    show_panel(
-        &window,
-        TrayRect {
-            position: tray.position.to_physical(scale),
-            size: tray.size.to_physical(scale),
-        },
-    );
+    show_panel(&window, tray);
+}
+
+/// Valores "crus" de uma posição/tamanho, seja qual for a unidade.
+fn raw_pos(p: tauri::Position) -> (f64, f64) {
+    match p {
+        tauri::Position::Physical(p) => (p.x as f64, p.y as f64),
+        tauri::Position::Logical(p) => (p.x, p.y),
+    }
+}
+
+fn raw_size(s: tauri::Size) -> (f64, f64) {
+    match s {
+        tauri::Size::Physical(s) => (s.width as f64, s.height as f64),
+        tauri::Size::Logical(s) => (s.width, s.height),
+    }
+}
+
+/// Encontra o ecrã onde está o ícone e devolve-o com o retângulo do ícone em
+/// píxeis físicos. Consoante o sistema, o retângulo vem em píxeis físicos ou
+/// lógicos (no Mac com ecrã Retina são o dobro), por isso testam-se as duas
+/// leituras e fica a que cai dentro de um ecrã.
+fn locate_tray(window: &WebviewWindow, tray: Rect) -> Option<(tauri::Monitor, TrayRect)> {
+    // Primeiro a unidade que o Tauri diz; depois a outra.
+    let logical = matches!(tray.position, tauri::Position::Logical(_));
+    let (x, y) = raw_pos(tray.position);
+    let (w, h) = raw_size(tray.size);
+    for monitor in window.available_monitors().ok()? {
+        let scale = monitor.scale_factor();
+        let (mx, my) = (monitor.position().x as f64, monitor.position().y as f64);
+        let (mw, mh) = (monitor.size().width as f64, monitor.size().height as f64);
+        let factors = if logical { [scale, 1.0] } else { [1.0, scale] };
+        for k in factors {
+            let (cx, cy) = ((x + w / 2.0) * k, (y + h / 2.0) * k);
+            if cx >= mx && cx < mx + mw && cy >= my && cy < my + mh {
+                let rect = TrayRect {
+                    position: PhysicalPosition::new(x * k, y * k),
+                    size: PhysicalSize::new(w * k, h * k),
+                };
+                return Some((monitor, rect));
+            }
+        }
+    }
+    None
 }
 
 /// Mostra o painel colado ao ícone: por cima quando a barra está em baixo
-/// (Windows), por baixo quando está em cima (macOS), sem sair do ecrã.
-fn show_panel(window: &WebviewWindow, tray: TrayRect) {
-    let center_x = tray.position.x + tray.size.width / 2.0;
-    let center_y = tray.position.y + tray.size.height / 2.0;
-    if let (Ok(Some(monitor)), Ok(win)) = (
-        window.monitor_from_point(center_x, center_y),
-        window.outer_size(),
-    ) {
+/// (Windows), por baixo quando está em cima (macOS), sem sair do ecrã. Se não
+/// der para saber onde está o ícone, fica no canto do ecrã principal onde
+/// costumam estar os ícones (em cima à direita no Mac, em baixo no Windows).
+fn show_panel(window: &WebviewWindow, tray: Rect) {
+    let located = locate_tray(window, tray).or_else(|| {
+        let monitor = window.primary_monitor().ok()??;
+        let area = monitor.work_area();
+        let x = area.position.x as f64 + area.size.width as f64 - 40.0;
+        let y = if cfg!(target_os = "macos") {
+            area.position.y as f64 - 1.0
+        } else {
+            area.position.y as f64 + area.size.height as f64
+        };
+        let rect = TrayRect { position: PhysicalPosition::new(x, y), size: PhysicalSize::new(1.0, 1.0) };
+        Some((monitor, rect))
+    });
+    if let (Some((monitor, tray)), Ok(win)) = (located, window.outer_size()) {
+        let center_x = tray.position.x + tray.size.width / 2.0;
+        let center_y = tray.position.y + tray.size.height / 2.0;
         let area = monitor.work_area();
         let (left, top) = (area.position.x as f64, area.position.y as f64);
         let right = left + area.size.width as f64;
