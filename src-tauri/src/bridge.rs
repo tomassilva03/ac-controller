@@ -29,14 +29,19 @@ impl Bridge {
     pub fn start(log_file: &std::path::Path) -> Result<Self, String> {
         let mut command = Command::new(bridge_path()?);
         command.env("HON_BRIDGE_LOG", log_file);
-        Self::start_with(command)
+        // Erros que acontecem antes do log arrancar (por exemplo, ao abrir o
+        // programa) só aparecem no stderr; ficam num ficheiro ao lado do log.
+        let stderr = std::fs::File::create(log_file.with_extension("stderr.log"))
+            .map(Stdio::from)
+            .unwrap_or_else(|_| Stdio::null());
+        Self::start_with(command, stderr)
     }
 
-    pub fn start_with(mut command: Command) -> Result<Self, String> {
+    pub fn start_with(mut command: Command, stderr: Stdio) -> Result<Self, String> {
         command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::null());
+            .stderr(stderr);
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
@@ -103,7 +108,7 @@ mod tests {
             "-c",
             r#"echo 'lixo que não é json'; while read l; do id=$(echo "$l" | sed 's/.*"id":\([0-9]*\).*/\1/'); echo "{\"id\":$id,\"ok\":true,\"result\":\"pong\"}"; done"#,
         ]);
-        let mut b = Bridge::start_with(cmd).unwrap();
+        let mut b = Bridge::start_with(cmd, Stdio::null()).unwrap();
         assert_eq!(b.request("ping", json!({})).unwrap(), json!("pong"));
         assert_eq!(b.request("ping", json!({})).unwrap(), json!("pong"));
     }
@@ -113,7 +118,7 @@ mod tests {
     fn error_response_becomes_err() {
         let mut cmd = Command::new("sh");
         cmd.args(["-c", r#"read l; echo '{"id":1,"ok":false,"error":"auth_failed"}'"#]);
-        let mut b = Bridge::start_with(cmd).unwrap();
+        let mut b = Bridge::start_with(cmd, Stdio::null()).unwrap();
         assert_eq!(b.request("login", json!({})).unwrap_err(), "auth_failed");
     }
 }

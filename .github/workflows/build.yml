@@ -73,7 +73,10 @@ jobs:
       # A app do Mac tem de sair com uma assinatura válida (ad-hoc), senão o
       # macOS diz que está "danificada" quando é descarregada.
       - if: runner.os == 'macOS'
-        run: codesign --verify --deep --strict --verbose=2 src-tauri/target/release/bundle/macos/*.app
+        run: |
+          codesign --verify --deep --strict --verbose=2 src-tauri/target/release/bundle/macos/*.app
+          # O hon-bridge dentro da app tem de arrancar e responder.
+          echo '{"id":1,"cmd":"ping"}' | src-tauri/target/release/bundle/macos/*.app/Contents/MacOS/hon-bridge | grep -q pong
 
   publish:
     needs: [release, build]
